@@ -108,6 +108,7 @@ export default {
           await this.$nextTick()
 
           let video = this.$refs.video
+
           log('connectStreamToVideoElement', stream, video)
           if (stream) {
             if ('srcObject' in video) {
@@ -126,6 +127,39 @@ export default {
           trackSilentException(err)
         }
       }
+    },
+    doSetupRecorder(stream) {
+      console.log('doSetupRecorder', this.id, stream)
+
+      this.mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm; codecs=vp9" })
+      console.log(this.mediaRecorder)
+
+      this.mediaRecorder.ondataavailable = this.streamOnDataAvailable
+      this.mediaRecorder.start()
+
+      setTimeout(event => {
+        console.log("stopping", this.id);
+        this.mediaRecorder.stop();
+      }, 9000);
+    },
+    streamOnDataAvailable(ev) {
+      console.log('data available', ev)
+      if (ev.data.size > 0) {
+        this.download(ev.data)
+      }
+    },
+    download(data) {
+      var blob = new Blob([data], {
+        type: "video/webm"
+      })
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      document.body.appendChild(a);
+      a.style = "display: none";
+      a.href = url;
+      a.download = "test.webm";
+      a.click();
+      window.URL.revokeObjectURL(url);
     },
     handleClick() {
       if (this.showPlayButton) {
@@ -151,13 +185,17 @@ export default {
     //   await this.$nextTick()
     //   await this.doConnectStream(this.stream)
     // })
+    console.log('mounted', this.id, this.stream)
     if (this.stream) {
       await this.doConnectStream(this.stream)
+      this.doSetupRecorder(this.stream)
     }
   },
   watch: {
     stream(value) {
-      this.doConnectStream(value)
+      this.doConnectStream(value).then(() => {
+        this.doSetupRecorder(this.stream)
+      })
     },
   },
 }
